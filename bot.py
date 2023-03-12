@@ -4,6 +4,11 @@ from discord import app_commands
 from datetime import datetime
 import time
 
+def read_token():
+    with open("token.txt", 'r') as f:
+        lines = f.readlines()
+        return lines[0].strip()
+
 def utc2local(utc):
     epoch = time.mktime(utc.timetuple())
     offset = datetime.fromtimestamp(epoch) - datetime.utcfromtimestamp(epoch)
@@ -16,6 +21,8 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 
 tree = app_commands.CommandTree(client)
+
+token = read_token()
 
 
 
@@ -50,5 +57,5 @@ async def on_message(message):
     if message.content.startswith('$hello'):
         await message.channel.send('Hello!')
 
-client.run('MTA4NDQyMzcwOTg5MDE4NzM5NA.G5mrBm.EU3MQb9z_uHcoyU9B0j5KeJbdWMb_ZsyNoxxBI')
+client.run(token)
 
