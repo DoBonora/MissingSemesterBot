@@ -38,25 +38,25 @@ class background_caching(commands.Cog):
                 if isinstance(channel, discord.TextChannel):
                     if not os.path.exists(f'UserCache/{guild.id}/{channel.id}'):
                         os.makedirs(f'UserCache/{guild.id}/{channel.id}')
-                    #last_message_time
                     lines_to_write = {}
                     if os.path.isfile(f'UserCache/{guild.id}/{channel.id}/time.txt'):
                         with open(f'UserCache/{guild.id}/{channel.id}/time.txt', 'r') as time_file:
-                            last_time = datetime.strptime(time_file.readline(), "%Y-%m-%d %H:%M:%S").astimezone()
+                            last_time = datetime.strptime(time_file.readline(), "%Y-%m-%d %H:%M:%S").astimezone() #if checkpoint exists continue
                     else: 
-                        last_time = datetime.strptime("2015-05-13 00:00:01", "%Y-%m-%d %H:%M:%S").astimezone() #startime is discord release date
+                        last_time = datetime.strptime("2015-05-13 00:00:01", "%Y-%m-%d %H:%M:%S").astimezone() #fallback startime is discord release date
                     async for message in channel.history(limit = 100, after = last_time, oldest_first = True):
                         if message.author not in lines_to_write:
                             lines_to_write[message.author] = []
-                        lines_to_write[message.author].append((f'{message.created_at.astimezone().strftime("%Y-%m-%d %H:%M:%S")}\n{message.content}\n'))
-                        if message.created_at.astimezone() > last_time:
+                        line_count = message.content.count("\n") + 1 #count message length to more easily parse it when reading
+                        lines_to_write[message.author].append((f'{message.created_at.astimezone().strftime("%Y-%m-%d %H:%M:%S")} [{line_count}]\n{message.content}\n')) #write time followed by content length and content
+                        if message.created_at.astimezone() > last_time: #find oldest message in list
                             last_time = message.created_at.astimezone()
                     for author, lines in lines_to_write.items():
                         with open(f'UserCache/{guild.id}/{channel.id}/{author}.txt', 'a+') as file:
                             for line in lines:
                                 file.write(f'{line}')
                     with open(f'UserCache/{guild.id}/{channel.id}/time.txt', 'w') as time_file:
-                            time_file.write(last_time.strftime("%Y-%m-%d %H:%M:%S"))
+                            time_file.write(last_time.strftime("%Y-%m-%d %H:%M:%S")) #write last parsed message to continue later
                         
     
     @message_cache.before_loop
