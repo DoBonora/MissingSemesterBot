@@ -32,17 +32,32 @@ class background_caching(commands.Cog):
     
     @tasks.loop(seconds=30.0)
     async def message_cache(self):
+        print("debug loop")
         for guild in bot.guilds:
             for channel in guild.channels:
                 if isinstance(channel, discord.TextChannel):
                     if not os.path.exists(f'UserCache/{guild.id}/{channel.id}'):
                         os.makedirs(f'UserCache/{guild.id}/{channel.id}')
-                    async for message in channel.history(limit = 100, oldest_first = True):
+                    #last_message_time
+                    lines_to_write = {}
+                    if os.path.isfile(f'UserCache/{guild.id}/{channel.id}/time.txt'):
+                        with open(f'UserCache/{guild.id}/{channel.id}/time.txt', 'r') as time_file:
+                            last_time = datetime.strptime(time_file.readline(), "%Y-%m-%d %H:%M:%S").astimezone()
+                    else: 
+                        last_time = datetime.strptime("2015-05-13 00:00:01", "%Y-%m-%d %H:%M:%S").astimezone() #startime is discord release date
+                    async for message in channel.history(limit = 100, after = last_time, oldest_first = True):
+                        if message.author not in lines_to_write:
+                            lines_to_write[message.author] = []
+                        lines_to_write[message.author].append((f'{message.created_at.astimezone().strftime("%Y-%m-%d %H:%M:%S")}\n{message.content}\n'))
+                        if message.created_at.astimezone() > last_time:
+                            last_time = message.created_at.astimezone()
+                    for author, lines in lines_to_write.items():
+                        with open(f'UserCache/{guild.id}/{channel.id}/{author}.txt', 'a+') as file:
+                            for line in lines:
+                                file.write(f'{line}')
+                    with open(f'UserCache/{guild.id}/{channel.id}/time.txt', 'w') as time_file:
+                            time_file.write(last_time.strftime("%Y-%m-%d %H:%M:%S"))
                         
-                        file = open(f'UserCache/{guild.id}/{channel.id}/{message.author}.txt', 'a+')
-                        file.write(f'{utc2local(message.created_at)}\n')
-                        file.write(f'{message.content}\n')
-                        file.close()
     
     @message_cache.before_loop
     async def before_message_cache(self):
