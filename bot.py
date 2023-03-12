@@ -17,6 +17,40 @@ def utc2local(utc):
     offset = datetime.fromtimestamp(epoch) - datetime.utcfromtimestamp(epoch)
     return utc + offset
 
+class background_caching(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        if not os.path.exists("UserCache"):
+            os.makedirs("UserCache")
+        for guild in bot.guilds:
+            if not os.path.exists(f'UserCache/{guild.id}'):
+                os.makedirs(f'UserCache/{guild.id}')
+        self.message_cache.start()
+    
+    def cog_unload(self):
+        message_cache.cancel()
+    
+    @tasks.loop(seconds=30.0)
+    async def message_cache(self):
+        for guild in bot.guilds:
+            for channel in guild.channels:
+                if isinstance(channel, discord.TextChannel):
+                    if not os.path.exists(f'UserCache/{guild.id}/{channel.id}'):
+                        os.makedirs(f'UserCache/{guild.id}/{channel.id}')
+                    async for message in channel.history(limit = 100, oldest_first = True):
+                        
+                        file = open(f'UserCache/{guild.id}/{channel.id}/{message.author}.txt', 'a+')
+                        file.write(f'{utc2local(message.created_at)}\n')
+                        file.write(f'{message.content}\n')
+                        file.close()
+    
+    @message_cache.before_loop
+    async def before_message_cache(self):
+        print('waiting...')
+        await self.bot.wait_until_ready()
+
+
+
 	
 intents = discord.Intents.default()
 intents.message_content = True
@@ -48,6 +82,7 @@ async def message_times(interaction, member: discord.Member):
 
 @bot.event
 async def on_ready():
+    await bot.add_cog(background_caching(bot))
     print("Ready!")
 
 @bot.event
@@ -60,6 +95,4 @@ async def on_message(message):
 
 
 bot.run(token)
-
-
 
