@@ -97,14 +97,15 @@ def getFrequencyDictForText(member):
     fullTermsDict.pop('', None)
     return fullTermsDict
 
-def generateWordcloud(dict, member):
-    avatar = member.display_avatar.url
-    if(avatar.count('embed') > 0): 
+def generateWordcloud(dict, member, userint):
+    avatar = member.display_avatar.replace(format='png', size=2048).url
+    
+    if avatar.count('embed') > 0 : 
         if avatar.count('0.png') > 0 :
             shutil.copy('discord_avatars/0.png', 'graphs/avatar.png')
         elif avatar.count('1.png') > 0 :
             shutil.copy('discord_avatars/1.png', 'graphs/avatar.png')   
-        elif avatar.count('2.png') > 0 :
+        elif avatar.count('2.png') > 0 : 
             shutil.copy('discord_avatars/2.png', 'graphs/avatar.png')       
         elif avatar.count('3.png') > 0 :
             shutil.copy('discord_avatars/3.png', 'graphs/avatar.png')        
@@ -116,19 +117,18 @@ def generateWordcloud(dict, member):
         img_data = requests.get(avatar).content
         with open('graphs/avatar.png', 'wb') as handler:
             handler.write(img_data)
-
-    avatar_coloring = np.array(Image.open('graphs/avatar.png'))
     
+    avatar_coloring = np.array(Image.open('graphs/avatar.png'))
     avatar_mask = cv2.cvtColor(avatar_coloring, cv2.COLOR_BGR2GRAY)
     edges = cv2.Canny(avatar_mask, threshold1=100, threshold2=200)
-    wc = WordCloud(max_words=2000, mask=edges, max_font_size=	25, relative_scaling=0.3, background_color="rgba(255, 255, 255, 0)", mode="RGBA")
+    wc = WordCloud(max_words=2000, mask=edges, relative_scaling=0.1, background_color="rgba(255, 255, 255, 0)", mode="RGBA")
     wc.generate_from_frequencies(dict)
 
     # create coloring from image
     image_colors = ImageColorGenerator(avatar_coloring)
     wc.recolor(color_func=image_colors)
     
-    wc.to_file('graphs/wc.png')
+    wc.to_file(f'graphs/wc{userint}.png')
     return
 
 class background_caching(commands.Cog):
@@ -144,7 +144,7 @@ class background_caching(commands.Cog):
         self.message_cache.start()
     
     def cog_unload(self):
-        message_cache.cancel()
+        self.message_cache.cancel()
     
     @tasks.loop(seconds=30.0)
     async def message_cache(self):
@@ -202,11 +202,21 @@ async def message_times(interaction, member: discord.Member):
     visualizeMessagesTimes(f'{member}')
     await interaction.response.send_message(file=discord.File('graphs/hist.png'))
 
-@bot.tree.command(name = "wordcloud", description = "Get a user wordcloud", guild=discord.Object(id=1081651254226325658))	
+@bot.tree.command(name = "wordcloud", description = "Get an user wordcloud", guild=discord.Object(id=1081651254226325658))	
 async def word_cloud(interaction, member: discord.Member):
-    generateWordcloud(getFrequencyDictForText(f'{member}'), member)
-    await interaction.response.send_message(file=discord.File('graphs/wc.png'))
+    generateWordcloud(getFrequencyDictForText(f'{member}'), member, 1)
+    await interaction.response.send_message(file=discord.File('graphs/wc1.png'))
 
+@bot.tree.command(name = "lovescore", description = "Get a lovescore between two users", guild=discord.Object(id=1081651254226325658))	
+async def word_cloud(interaction, member1: discord.Member, member2: discord.Member):
+    generateWordcloud(getFrequencyDictForText(f'{member1}'), member1, 1)
+    generateWordcloud(getFrequencyDictForText(f'{member2}'), member2, 2)
+    files_to_read: list[str] = ['graphs/wc1.png', 'graphs/wc2.png']
+    files_to_send: list[discord.File] = []
+    for filename in files_to_read:
+        with open(filename, 'rb') as f:  # discord file objects must be opened in binary and read mode
+            files_to_send.append(discord.File(f))
+    await interaction.response.send_message(files=files_to_send)
 
 @bot.event
 async def on_ready():
