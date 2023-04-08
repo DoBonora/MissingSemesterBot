@@ -5,7 +5,12 @@ from discord.ext import tasks, commands
 from datetime import datetime
 import time
 
+import matplotlib.pyplot as plt
+
 import os
+
+import math
+
 
 def read_token():
     with open("token.txt", 'r') as f:
@@ -16,6 +21,46 @@ def utc2local(utc):
     epoch = time.mktime(utc.timetuple())
     offset = datetime.fromtimestamp(epoch) - datetime.utcfromtimestamp(epoch)
     return utc + offset
+
+def visualizeMessagesTimes(member):
+    times = []
+    subdirs = [x[0] for x in os.walk("UserCache")]
+    for subdir in subdirs:
+        files = os.walk(subdir).__next__()[2]
+        if files.count(member+".txt") > 0 :
+            file = open(subdir + "/" + member+".txt", "r")
+            lines = file.readlines()
+            i = 0
+            while i < len(lines)-1:
+                l = lines[i].split("[")
+                l[0] = l[0].rstrip(" ")
+                date = datetime.strptime(l[0], "%Y-%m-%d %H:%M:%S")
+                times.append(date.time())
+                l[1] = l[1].rstrip("]\n")
+                i += int(l[1])+1
+            file.close()
+			
+    
+    hour_list = [float(t.hour) for t in times]
+    minute_list = [math.floor(t.minute/10)/6 for t in times] # magic numbers, die irgendwas machen Vllt weiß ich es morgen noch /6 = 10/60
+    hm_list = []
+                    
+    for h,m in zip(hour_list, minute_list):
+        hm_list.append(h+m)
+        
+    numbers = [x for x in range(0,24)]
+    labels = map(lambda x : str(x), numbers)
+    plt.xticks(numbers, labels)
+    plt.xlim(0, 24)
+    plt.hist(hm_list, color="Green", width= 1/6)
+
+    plt.xlabel('times of messages')
+    plt.ylabel('frequency of occurrences')
+    plt.title(member)
+    plt.savefig('graphs/hist.png')
+                   
+    return
+
 
 class background_caching(commands.Cog):
     def __init__(self, bot):
@@ -39,7 +84,7 @@ class background_caching(commands.Cog):
                         os.makedirs(f'UserCache/{guild.id}/{channel.id}')
                     async for message in channel.history(limit = 100, oldest_first = True):
                         
-                        file = open(f'UserCache/{guild.id}/{channel.id}/{message.author}.txt', 'a+')
+                        file = open(f'UserCache/{guild.id}/{channel.id}/{message.author}.txt', 'a+', encoding="utf-8")
                         file.write(f'{utc2local(message.created_at)}\n')
                         file.write(f'{message.content}\n')
                         file.close()
@@ -77,12 +122,14 @@ async def message_times(interaction, member: discord.Member):
                     counter += 1
                     times[utc2local(message.created_at).hour] += 1
 
-    await interaction.response.send_message(f'{member.mention} has sent **{counter}** messages in this server. \n Message_Time_Array: **{times}**')
+    #await interaction.response.send_message(f'{member.mention} has sent **{counter}** messages in this server. \n Message_Time_Array: **{times}**')
+    visualizeMessagesTimes(f'{member}')
+    await interaction.response.send_message(file=discord.File('graphs/hist.png'))
 
 
 @bot.event
 async def on_ready():
-    await bot.add_cog(background_caching(bot))
+    #await bot.add_cog(background_caching(bot))
     print("Ready!")
 
 @bot.event
