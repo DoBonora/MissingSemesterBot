@@ -1,6 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import tasks, commands
+from wordcloud import WordCloud
 
 from datetime import datetime
 import time
@@ -61,12 +62,18 @@ def visualizeMessagesTimes(member):
                    
     return
 
+def mostFrequentWords(member):
+
+    return
+
 
 class background_caching(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         if not os.path.exists("UserCache"):
             os.makedirs("UserCache")
+        if not os.path.exists("graphs"):
+            os.makedirs("graphs")    
         for guild in bot.guilds:
             if not os.path.exists(f'UserCache/{guild.id}'):
                 os.makedirs(f'UserCache/{guild.id}')
