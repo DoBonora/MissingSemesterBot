@@ -211,7 +211,7 @@ async def word_cloud(interaction, member: discord.Member):
 async def word_cloud(interaction, member1: discord.Member, member2: discord.Member):
     generateWordcloud(getFrequencyDictForText(f'{member1}'), member1, 1)
     generateWordcloud(getFrequencyDictForText(f'{member2}'), member2, 2)
-    files_to_read: list[str] = ['graphs/wc1.png', 'graphs/wc2.png']
+    files_to_read: list[str] = ['graphs/wc1.png', 'ressources/heart.png', 'graphs/wc2.png']
     files_to_send: list[discord.File] = []
     for filename in files_to_read:
         with open(filename, 'rb') as f:  # discord file objects must be opened in binary and read mode
