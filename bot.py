@@ -12,9 +12,9 @@ import math
 import requests
 import numpy as np
 from PIL import Image
-from scipy.ndimage import gaussian_gradient_magnitude
 import cv2
 import shutil
+from deepdiff import DeepDiff
 
 def read_token():
     with open("token.txt", 'r', encoding="utf-8") as f:
@@ -26,7 +26,8 @@ def utc2local(utc):
     offset = datetime.fromtimestamp(epoch) - datetime.utcfromtimestamp(epoch)
     return utc + offset
 
-def visualizeMessagesTimes(member):
+def visualizeMessagesTimes(member, image = True):
+    plt.clf()
     times = []
     subdirs = [x[0] for x in os.walk("UserCache")]
     for subdir in subdirs:
@@ -52,18 +53,19 @@ def visualizeMessagesTimes(member):
     for h,m in zip(hour_list, minute_list):
         hm_list.append(h+m)
         
-    numbers = [x for x in range(0,24)]
-    labels = map(lambda x : str(x), numbers)
-    plt.xticks(numbers, labels)
-    plt.xlim(0, 24)
-    plt.hist(hm_list, color="Green", width= 1/6)
+    if image: 
+        numbers = [x for x in range(0,24)]
+        labels = map(lambda x : str(x), numbers)
+        plt.xticks(numbers, labels)
+        plt.xlim(0, 24)
+        plt.hist(hm_list, color="Green", width= 1/6)
 
-    plt.xlabel('times of messages')
-    plt.ylabel('frequency of occurrences')
-    plt.title(member)
-    plt.savefig('graphs/hist.png')
-                   
-    return
+        plt.xlabel('times of messages')
+        plt.ylabel('frequency of occurrences')
+        plt.title(member)
+        plt.savefig('graphs/hist.png')
+             
+    return hm_list
 
 
 def getFrequencyDictForText(member):
@@ -97,22 +99,22 @@ def getFrequencyDictForText(member):
     fullTermsDict.pop('', None)
     return fullTermsDict
 
-def generateWordcloud(dict, member, userint):
+def generateWordcloud(dict, member):
     avatar = member.display_avatar.replace(format='png', size=2048).url
     
     if avatar.count('embed') > 0 : 
         if avatar.count('0.png') > 0 :
-            shutil.copy('discord_avatars/0.png', 'graphs/avatar.png')
+            shutil.copy('ressources/0.png', 'graphs/avatar.png')
         elif avatar.count('1.png') > 0 :
-            shutil.copy('discord_avatars/1.png', 'graphs/avatar.png')   
+            shutil.copy('ressources/1.png', 'graphs/avatar.png')   
         elif avatar.count('2.png') > 0 : 
-            shutil.copy('discord_avatars/2.png', 'graphs/avatar.png')       
+            shutil.copy('ressources/2.png', 'graphs/avatar.png')       
         elif avatar.count('3.png') > 0 :
-            shutil.copy('discord_avatars/3.png', 'graphs/avatar.png')        
+            shutil.copy('ressources/3.png', 'graphs/avatar.png')        
         elif avatar.count('4.png') > 0 :
-            shutil.copy('discord_avatars/4.png', 'graphs/avatar.png')    
+            shutil.copy('ressources/4.png', 'graphs/avatar.png')    
         elif avatar.count('5.png') > 0 :
-            shutil.copy('discord_avatars/5.png', 'graphs/avatar.png')        
+            shutil.copy('ressources/5.png', 'graphs/avatar.png')        
     else:     
         img_data = requests.get(avatar).content
         with open('graphs/avatar.png', 'wb') as handler:
@@ -128,8 +130,66 @@ def generateWordcloud(dict, member, userint):
     image_colors = ImageColorGenerator(avatar_coloring)
     wc.recolor(color_func=image_colors)
     
-    wc.to_file(f'graphs/wc{userint}.png')
+    wc.to_file('graphs/wc.png')
     return
+
+def calculateLovescore(member1, member2):
+    hm_list1 = visualizeMessagesTimes(f'{member1}', image = False)
+    hm_list2 = visualizeMessagesTimes(f'{member2}', image = False)
+    plt.clf()
+
+    hm_list1 = sum(hm_list1)/len(hm_list1)
+    hm_list2 = sum(hm_list2)/len(hm_list2)
+    
+    timeDifference = hm_list2-hm_list1 if hm_list2 > hm_list1 else 24-hm_list1+hm_list2 
+
+    timeScore = 100 - 100*timeDifference/24
+
+    dict1 = getFrequencyDictForText(f'{member1}')
+    dict2 = getFrequencyDictForText(f'{member2}')
+
+    dict_Top10_1 = sorted(dict1, key=dict1.get, reverse=True)[:10]
+    dict_Top10_2 = sorted(dict2, key=dict2.get, reverse=True)[:10]
+
+    occ1 = 0
+    occ1_1 = 0
+    for key in dict_Top10_1:
+        occ1 += dict2.get(key, 0)
+        occ1_1 += dict1.get(key, 0)
+    dictDiff1 = occ1/sum(dict2.values())
+    owndictDiff1 = occ1_1/sum(dict1.values())
+    dictDiff1 = 100 * dictDiff1/owndictDiff1
+    
+    occ2 = 0
+    occ2_2 = 0
+    for key in dict_Top10_2:
+        occ2 += dict1.get(key, 0)
+        occ2_2 += dict2.get(key,0)
+    dictDiff2 = occ2/sum(dict1.values())
+    owndictDiff2 = occ2_2/sum(dict2.values())
+    dictDiff2 = 100 * dictDiff2/owndictDiff2
+
+    dictScore = (dictDiff1+dictDiff2)/2
+    lovescore = int((timeScore+dictScore)/2)
+
+
+
+    generateWordcloud(dict1, member1)
+    wc1 = plt.imread('graphs/wc.png')
+    generateWordcloud(dict2, member2)
+    wc2 = plt.imread('graphs/wc.png')
+    heart = plt.imread('ressources/heart.png')
+
+    fig, axes = plt.subplots(1, 3)
+    plt.text(0.5, 0.5, f'{lovescore}%', ha ='center', va ='center', size=25, transform = axes[1].transAxes)
+
+    axes[0].imshow(wc1, interpolation="bilinear")
+    axes[1].imshow(heart, interpolation="bilinear")
+    axes[2].imshow(wc2, interpolation="bilinear")
+    for ax in axes:
+        ax.set_axis_off()
+    plt.savefig('graphs/lovescore.png', transparent=True, bbox_inches='tight')
+    return  
 
 class background_caching(commands.Cog):
     def __init__(self, bot):
@@ -204,19 +264,14 @@ async def message_times(interaction, member: discord.Member):
 
 @bot.tree.command(name = "wordcloud", description = "Get an user wordcloud", guild=discord.Object(id=1081651254226325658))	
 async def word_cloud(interaction, member: discord.Member):
-    generateWordcloud(getFrequencyDictForText(f'{member}'), member, 1)
-    await interaction.response.send_message(file=discord.File('graphs/wc1.png'))
+    generateWordcloud(getFrequencyDictForText(f'{member}'), member)
+    await interaction.response.send_message(file=discord.File('graphs/wc.png'))
 
 @bot.tree.command(name = "lovescore", description = "Get a lovescore between two users", guild=discord.Object(id=1081651254226325658))	
 async def word_cloud(interaction, member1: discord.Member, member2: discord.Member):
-    generateWordcloud(getFrequencyDictForText(f'{member1}'), member1, 1)
-    generateWordcloud(getFrequencyDictForText(f'{member2}'), member2, 2)
-    files_to_read: list[str] = ['graphs/wc1.png', 'ressources/heart.png', 'graphs/wc2.png']
-    files_to_send: list[discord.File] = []
-    for filename in files_to_read:
-        with open(filename, 'rb') as f:  # discord file objects must be opened in binary and read mode
-            files_to_send.append(discord.File(f))
-    await interaction.response.send_message(files=files_to_send)
+    await interaction.response.defer()
+    calculateLovescore(member1, member2)
+    await interaction.followup.send(file=discord.File('graphs/lovescore.png'))
 
 @bot.event
 async def on_ready():
@@ -235,4 +290,3 @@ async def on_message(message):
 
 
 bot.run(token)
-
