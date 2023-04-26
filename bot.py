@@ -133,17 +133,33 @@ def generateWordcloud(dict, member):
     wc.to_file('graphs/wc.png')
     return
 
+def averageHours(hour_list):
+    #average time of a list of times
+    for idx, x in enumerate(hour_list):
+        if (idx == 0): avg = x
+        else :
+            #calculate difference with hour wraparound
+            dif = x-avg
+            if (abs(dif) > 12): dif=x+(24-avg)
+            avg += (dif / (idx+1)) #rolling average
+            if (avg > 24): avg-=24
+    return avg
+
 def calculateLovescore(member1, member2):
     hm_list1 = visualizeMessagesTimes(f'{member1}', image = False)
     hm_list2 = visualizeMessagesTimes(f'{member2}', image = False)
     plt.clf()
 
-    hm_list1 = sum(hm_list1)/len(hm_list1)
-    hm_list2 = sum(hm_list2)/len(hm_list2)
-    
-    timeDifference = hm_list2-hm_list1 if hm_list2 > hm_list1 else 24-hm_list1+hm_list2 
 
-    timeScore = 100 - 100*timeDifference/24
+    avg1 = averageHours(hm_list1)
+    avg2 = averageHours(hm_list2)
+
+    #same calculation for difference
+    timeDifference = avg1-avg2
+    if (abs(timeDifference) > 12): timeDifference=avg1+(24-avg2)
+    
+
+    timeScore = 100 - 100*abs(timeDifference)/24
 
     dict1 = getFrequencyDictForText(f'{member1}')
     dict2 = getFrequencyDictForText(f'{member2}')
@@ -263,12 +279,13 @@ async def message_times(interaction, member: discord.Member):
     await interaction.response.send_message(file=discord.File('graphs/hist.png'))
 
 @bot.tree.command(name = "wordcloud", description = "Get an user wordcloud", guild=discord.Object(id=1081651254226325658))	
-async def word_cloud(interaction, member: discord.Member):
+async def wordcloud(interaction, member: discord.Member):
+    await interaction.response.defer()
     generateWordcloud(getFrequencyDictForText(f'{member}'), member)
-    await interaction.response.send_message(file=discord.File('graphs/wc.png'))
+    await interaction.followup.send(file=discord.File('graphs/wc.png'))
 
 @bot.tree.command(name = "lovescore", description = "Get a lovescore between two users", guild=discord.Object(id=1081651254226325658))	
-async def word_cloud(interaction, member1: discord.Member, member2: discord.Member):
+async def lovescore(interaction, member1: discord.Member, member2: discord.Member):
     await interaction.response.defer()
     calculateLovescore(member1, member2)
     await interaction.followup.send(file=discord.File('graphs/lovescore.png'))
