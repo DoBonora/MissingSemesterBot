@@ -47,6 +47,7 @@ def visualizeMessagesTimes(member, image = True):
 			
     
     hour_list = [float(t.hour) for t in times]
+    #TODO: Helena pls fix comment
     minute_list = [math.floor(t.minute/10)/6 for t in times] # magic numbers, die irgendwas machen Vllt weiß ich es morgen noch /6 = 10/60
     hm_list = []
                     
@@ -102,6 +103,8 @@ def getFrequencyDictForText(member):
 def generateWordcloud(dict, member):
     avatar = member.display_avatar.replace(format='png', size=2048).url
     
+    #discord uses greyscale pngs colored by some 'magic' which breaks the algorithm
+    #therefore we just hardcoded all the 6 possible default avatars with pictures we manually saved
     if avatar.count('embed') > 0 : 
         if avatar.count('0.png') > 0 :
             shutil.copy('ressources/0.png', 'graphs/avatar.png')
@@ -158,12 +161,14 @@ def calculateLovescore(member1, member2):
     timeDifference = avg1-avg2
     if (abs(timeDifference) > 12): timeDifference=avg1+(24-avg2)
     
-
+    #percentage the times differ by
     timeScore = 100 - 100*abs(timeDifference)/24
 
     dict1 = getFrequencyDictForText(f'{member1}')
     dict2 = getFrequencyDictForText(f'{member2}')
 
+    #we compare the top 10 of both users
+    #for this we compare the occurance of both these top10 in both users
     dict_Top10_1 = sorted(dict1, key=dict1.get, reverse=True)[:10]
     dict_Top10_2 = sorted(dict2, key=dict2.get, reverse=True)[:10]
 
@@ -185,6 +190,7 @@ def calculateLovescore(member1, member2):
     owndictDiff2 = occ2_2/sum(dict2.values())
     dictDiff2 = 100 * dictDiff2/owndictDiff2
 
+    #final lovescore is the average difference of all these scores
     dictScore = (dictDiff1+dictDiff2)/2
     lovescore = int((timeScore+dictScore)/2)
 
@@ -207,7 +213,10 @@ def calculateLovescore(member1, member2):
     plt.savefig('graphs/lovescore.png', transparent=True, bbox_inches='tight')
     return  
 
+#we cant just poll discord for 50000 messages with every command
+#therefore we poll it in the background and save it into a local cash in chunks    
 class background_caching(commands.Cog):
+    #on init create the folder structure if it does not exist yet
     def __init__(self, bot):
         self.bot = bot
         if not os.path.exists("UserCache"):
@@ -222,35 +231,41 @@ class background_caching(commands.Cog):
     def cog_unload(self):
         self.message_cache.cancel()
     
+    #every 30 seconds we poll new messages to cache more, or to add new messages once our cache is up to date
     @tasks.loop(seconds=30.0)
     async def message_cache(self):
-        print("debug loop")
+        #print("debug loop")
+        #for every server and every channel on those servers we make a cache folder
         for guild in bot.guilds:
             for channel in guild.channels:
                 if isinstance(channel, discord.TextChannel):
                     if not os.path.exists(f'UserCache/{guild.id}/{channel.id}'):
                         os.makedirs(f'UserCache/{guild.id}/{channel.id}')
                     lines_to_write = {}
+                    #we save the timestamp of the last message we cached, so we can continue from that point the next time
                     if os.path.isfile(f'UserCache/{guild.id}/{channel.id}/time.txt'):
                         with open(f'UserCache/{guild.id}/{channel.id}/time.txt', 'r') as time_file:
                             last_time = datetime.strptime(time_file.readline(), "%Y-%m-%d %H:%M:%S").astimezone() #if checkpoint exists continue
                     else: 
                         last_time = datetime.strptime("2015-05-13 00:00:01", "%Y-%m-%d %H:%M:%S").astimezone() #fallback startime is discord release date
+                    #limit of 100 messages was chosen arbitrarily, it works for our purposes, for larger servers the bot needs some time to be up to date
                     async for message in channel.history(limit = 100, after = last_time, oldest_first = True):
                         if message.author not in lines_to_write:
                             lines_to_write[message.author] = []
                         line_count = message.content.count("\n") + 1 #count message length to more easily parse it when reading
-                        lines_to_write[message.author].append((f'{message.created_at.astimezone().strftime("%Y-%m-%d %H:%M:%S")} [{line_count}]\n{message.content}\n')) #write time followed by content length and content
+                        #write time followed by content length and content
+                        lines_to_write[message.author].append((f'{message.created_at.astimezone().strftime("%Y-%m-%d %H:%M:%S")} [{line_count}]\n{message.content}\n'))
                         if message.created_at.astimezone() > last_time: #find oldest message in list
                             last_time = message.created_at.astimezone()
                     for author, lines in lines_to_write.items():
+                        #write the timestamp and all lines in a fspecific file for every user
                         with open(f'UserCache/{guild.id}/{channel.id}/{author}.txt', 'a+', encoding="utf-8") as file:
                             for line in lines:
                                 file.write(f'{line}')
                     with open(f'UserCache/{guild.id}/{channel.id}/time.txt', 'w', encoding="utf-8") as time_file:
-                            time_file.write(last_time.strftime("%Y-%m-%d %H:%M:%S")) #write last parsed message to continue later
+                            time_file.write(last_time.strftime("%Y-%m-%d %H:%M:%S")) #write time of last parsed message to continue later
                         
-    
+    #debug message before the caching starts to show bot is ready
     @message_cache.before_loop
     async def before_message_cache(self):
         print('waiting...')
@@ -258,25 +273,30 @@ class background_caching(commands.Cog):
 
 
 
-	
+#discord bots use intends to set up what they can and cannot do (as well als giving them rights on a server)	
 intents = discord.Intents.default()
 intents.message_content = True
 
+#command prefix only used for old way of doing commands
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 
 token = read_token()
 
 
-
+#Discord commands need to be registered on the  tree to be able to be used as slash commands
+#Registering them on a specific guild (i.e. Server) makes them available faster but limits them
 @bot.tree.command(name = "say_hello", description = "The bot posts Hello", guild=discord.Object(id=1081651254226325658)) 
 async def say_hello(interaction):
     await interaction.response.send_message("Hello!")
 	
 @bot.tree.command(name = "message_times", description = "Get a message time statistic", guild=discord.Object(id=1081651254226325658))	
 async def message_times(interaction, member: discord.Member):
+    #if the message is not responded in time it times out, so we need to defer it
+    await interaction.response.defer()
     visualizeMessagesTimes(f'{member}')
-    await interaction.response.send_message(file=discord.File('graphs/hist.png'))
+    #the followup can be used to answer a defered question after the fact i.e. once the image is created
+    await interaction.followup.send(file=discord.File('graphs/hist.png'))
 
 @bot.tree.command(name = "wordcloud", description = "Get an user wordcloud", guild=discord.Object(id=1081651254226325658))	
 async def wordcloud(interaction, member: discord.Member):
@@ -290,13 +310,14 @@ async def lovescore(interaction, member1: discord.Member, member2: discord.Membe
     calculateLovescore(member1, member2)
     await interaction.followup.send(file=discord.File('graphs/lovescore.png'))
 
+#cogs are needed to do background tasks, like our caching
 @bot.event
 async def on_ready():
     await bot.add_cog(background_caching(bot))
     await bot.tree.sync(guild=discord.Object(id=1081651254226325658))
     print("Ready!")
 
-
+#legacy/debug Command to test if bot really is running
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
@@ -305,5 +326,5 @@ async def on_message(message):
     if message.content.startswith('$hello'):
         await message.channel.send('Hello!')
 
-
+#run the bot using an external token (not shared on git but saved in a local file)
 bot.run(token)

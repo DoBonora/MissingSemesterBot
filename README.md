@@ -10,6 +10,8 @@ While the bot is running it will regularly fetch messages in the background, so 
 * An API should have a timeline which things changed when and tutorials should always be clearly timestamped to be able to easily see if what you are trying to implement is outdated
 * Caching data and saving it locally might work better in a database format or some other pre-defined format instead of creating your own format and working with that
 * For slower commands one needs to delay the bot response else the bot request times out
+* Discord default avatars are some kind of greyscale image that get the colour from somewhere, which makes working with them really hard. This is why we have workaround pngs in our ressources
+* When developing software its good to have a diverse setup of testers. In this case specifically a nitro and a non nitro user. (for features such as gif avatars)
 * For different tasks different dummy data can work: Lorem Ipsum works to test formatting but would be rather ill fitted for our purposes of testing the commands. Just copy pasting the entire bee movie script into discord is more akin to natural english conversation (minus the fact that "Barry" is one of our most used words and our conversation is very honey focused)
 * Its not trivial to calculate the average or difference of hours if they are independed of days, i.e. when 23:00-1:00 is 2hours and 1:00-23:00 is also -2hours
 * Just like all lovescore calculations one can find on the internet its always important to use some weird number crunching to calculate such a score instead of actual metrics that actually say things about the users (althought posting time similarity and word similarity is definitely better than most metrics)
