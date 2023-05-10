@@ -1,5 +1,4 @@
 import discord
-from discord import app_commands
 from discord.ext import tasks, commands
 from wordcloud import WordCloud, ImageColorGenerator
 import multidict as multidict
@@ -14,7 +13,6 @@ import numpy as np
 from PIL import Image
 import cv2
 import shutil
-from deepdiff import DeepDiff
 
 def read_token():
     with open("token.txt", 'r', encoding="utf-8") as f:
@@ -47,8 +45,9 @@ def visualizeMessagesTimes(member, image = True):
 			
     
     hour_list = [float(t.hour) for t in times]
-    #TODO: Helena pls fix comment
-    minute_list = [math.floor(t.minute/10)/6 for t in times] # magic numbers, die irgendwas machen Vllt weiß ich es morgen noch /6 = 10/60
+
+    # Converting the minutes for the histogram
+    minute_list = [math.floor(t.minute/10)/6 for t in times] 
     hm_list = []
                     
     for h,m in zip(hour_list, minute_list):
@@ -86,10 +85,14 @@ def getFrequencyDictForText(member):
                     text += lines[x]
                 i += int(l[1])+1
             file.close()
+
     fullTermsDict = multidict.MultiDict()
     tmpDict = {}
     end = ('.', '!', '?', ':', ';', ',')
+
+    # making dict for counting frequencies
     for sentence in re.split(' |\n',text):
+        # remove word endings
         if sentence.endswith(end):
             sentence = sentence[:-1]
         if re.match("this|not|it|the|to|in|for|of|if|and|is|that|a|be|on|from|by|der|die|und|in|zu|den|das|nicht|von|sie|ist|ja|nein|des|sich|mit|dem|dass|er|es|ein|ich|auf|so|eine|auch|als|an|nach|wie|im|für", sentence):
