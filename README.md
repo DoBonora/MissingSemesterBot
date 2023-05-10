@@ -2,7 +2,7 @@
 
 ## Using the bot
 The bot runs on our testing discord server (https://discord.gg/ksSEF6HMDp) but can actually be used on any discord server.
-Before the first use, all necessary packages must be installed with ```pip install -r requirements.txt"```.
+Before the first use, all necessary packages must be installed with ```pip install -r requirements.txt```.
 Using the newish slash-commands discord implemented the bot can just be invoked with /message_times /wordcloud and /lovescore followed by the user(s)
 While the bot is running it will regularly fetch messages in the background, so the result will change until the bot cached all the messages on the server, this is done so wordclouds can be generated over the full message history while not breaking anything by trying to fetch 4 years of message history from the server at once.
 
